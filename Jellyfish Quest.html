@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jellyfish Quest</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--deep:#06182e;--mid:#0d3b5e;--glow:#5ff2d0;--pink:#ff7ac6;--gold:#ffd166;--text:#eaf6ff;--bad:#ff8fa3;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100vh;background:linear-gradient(#0f6a8f 0%,var(--mid) 25%,var(--deep) 70%,#020a14 100%);background-attachment:fixed;color:var(--text);font-family:Fredoka,"Trebuchet MS",system-ui,sans-serif;font-size:18px;line-height:1.5}
+main{max-width:680px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:2.4rem;margin:.2em 0;line-height:1.1}
+h2{font-size:1.5rem;margin:.2em 0}
+.jelly{font-size:4.5rem;display:inline-block;animation:bob 3s ease-in-out infinite;filter:drop-shadow(0 0 14px var(--pink))}
+@keyframes bob{50%{transform:translateY(-14px)}}
+@media(prefers-reduced-motion:reduce){.jelly{animation:none}}
+.panel{background:rgba(2,16,34,.62);border:2px solid rgba(95,242,208,.35);border-radius:22px;padding:20px;margin-top:14px}
+.hud{display:flex;justify-content:space-between;gap:10px;font-weight:600;color:var(--gold)}
+.depth{height:10px;background:rgba(255,255,255,.12);border-radius:9px;overflow:hidden;margin-top:6px}
+.depth i{display:block;height:100%;background:linear-gradient(90deg,var(--glow),var(--pink));width:0;transition:width .5s}
+.q{padding:14px 0;border-top:1px dashed rgba(255,255,255,.2)}
+.q:first-of-type{border-top:0}
+.q p{margin:0 0 10px}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+button,input,textarea{font:inherit}
+.opt,.go{border:2px solid var(--glow);background:transparent;color:var(--text);border-radius:999px;padding:7px 16px;cursor:pointer}
+.opt:hover{background:rgba(95,242,208,.15)}
+.opt:focus-visible,.go:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.opt.right{background:var(--glow);color:var(--deep);border-color:var(--glow);font-weight:600}
+.opt.wrong{border-color:var(--bad);color:var(--bad);text-decoration:line-through}
+.opt:disabled{cursor:default;opacity:.75}
+.go{background:var(--pink);border-color:var(--pink);color:var(--deep);font-weight:700;padding:10px 26px;margin-top:16px}
+.go:disabled{opacity:.4;cursor:not-allowed}
+.fb{min-height:1.4em;font-size:.95rem;color:var(--glow);margin-top:6px}
+.fb.no{color:var(--bad)}
+input,textarea{width:100%;padding:12px;border-radius:14px;border:2px solid var(--glow);background:rgba(255,255,255,.08);color:var(--text)}
+.bank{color:var(--gold);font-size:.95rem}
+.badge{font-size:3.5rem}
+.hint{opacity:.8;font-size:.95rem}
+pre{white-space:pre-wrap;background:rgba(255,255,255,.08);padding:12px;border-radius:12px;font:inherit;font-size:.9rem;text-align:left}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+var LV=[
+{zone:"Sunlight Zone",title:"Fact or Myth?",intro:"Tap True or False for each jellyfish fact.",
+ qs:[["A jellyfish has a brain.",["True","False"],1,"It has no brain, heart, bones or eyes!"],
+ ["Its mouth is in the center of its body.",["True","False"],0,"Yes, right in the middle."],
+ ["Some jellyfish can glow in the dark.",["True","False"],0,"Amazing, aren’t they?"],
+ ["Jellyfish have strong bones.",["True","False"],1,"No bones at all."],
+ ["Jellyfish are used in traditional medicines.",["True","False"],0,"Yes, for example for high blood pressure."]]},
+{zone:"Twilight Zone",title:"Finish the Fact",intro:"Choose the missing word.",
+ qs:[["The jellyfish has a smooth, bag-like body and ____.",["tentacles","wings","legs"],0,"Tentacles!"],
+ ["Some jellyfish are ____ while others have bright colors.",["transparent","heavy","noisy"],0,"You can see right through them."],
+ ["They are a good source of nutrients and ____.",["minerals","sugar","plastic"],0,"Minerals, yes."],
+ ["We can slice them into thin pieces for ____.",["salad","ice cream","pizza"],0,"A salad, correct."],
+ ["The jellyfish is an ____-like creature.",["umbrella","airplane","apple"],0,"Umbrella-like, because of its shape."]]},
+{zone:"Midnight Zone",title:"How Do We Use Jellyfish?",intro:"Sort each idea: is it about Food, Medicine or Aquariums?",
+ qs:[["We can slice them into thin pieces for salad.",["Food","Medicine","Aquarium"],0,"Food."],
+ ["It is good for treating arthritis and ulcers.",["Food","Medicine","Aquarium"],1,"Medicine."],
+ ["It makes the tank look more interesting.",["Food","Medicine","Aquarium"],2,"Aquarium."],
+ ["You can cook them with vegetables or meat.",["Food","Medicine","Aquarium"],0,"Food."],
+ ["It helps with high blood pressure.",["Food","Medicine","Aquarium"],1,"Medicine."],
+ ["People enjoy watching them in local places.",["Food","Medicine","Aquarium"],2,"Aquarium."]]},
+{zone:"The Deep",title:"Your Turn to Write",intro:"Write 2 or 3 sentences. Which jellyfish fact surprised you most, and why?",write:1}
+];
+var S={n:"",l:-1,pts:0,max:0,log:[],text:""};
+var app=document.getElementById("app");
+function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function hud(){var p=Math.max(0,S.l)/LV.length*100;return '<div class="hud"><span>'+esc(S.n)+'</span><span>⭐ '+S.pts+'</span></div><div class="depth"><i style="width:'+p+'%"></i></div>'}
+function start(){app.innerHTML='<div style="text-align:center;padding-top:20px"><div class="jelly" aria-hidden="true">🪼</div><h1>Jellyfish Quest</h1><p>Dive through 4 ocean zones and become a Jellyfish Expert. Read the text first, then answer from what you remember!</p></div><div class="panel"><label for="nm">What is your name, explorer?</label><br><br><input id="nm" autocomplete="off" maxlength="30"><button class="go" id="b" disabled>Start diving</button></div>';
+ var i=document.getElementById("nm"),b=document.getElementById("b");
+ i.oninput=function(){b.disabled=!i.value.trim()};
+ b.onclick=function(){S.n=i.value.trim();next()};}
+function next(){S.l++;if(S.l>=LV.length)return end();var L=LV[S.l];L.write?writeLv(L):quiz(L)}
+function quiz(L){
+ var done=0,h=hud()+'<div class="panel"><h2>'+L.zone+': '+L.title+'</h2><p class="hint">'+L.intro+'</p>';
+ L.qs.forEach(function(q,i){h+='<div class="q"><p>'+esc(q[0])+'</p><div class="opts" id="o'+i+'">'+q[1].map(function(o,j){return '<button class="opt" data-q="'+i+'" data-j="'+j+'">'+esc(o)+'</button>'}).join("")+'</div><div class="fb" id="f'+i+'" aria-live="polite"></div></div>'});
+ h+='<button class="go" id="nx" disabled>Dive deeper</button></div>';
+ app.innerHTML=h;
+ var tried={},first={};
+ app.querySelectorAll(".opt").forEach(function(b){b.onclick=function(){
+  var i=+b.dataset.q,j=+b.dataset.j,q=L.qs[i],f=document.getElementById("f"+i);
+  if(first[i]===undefined){first[i]=j===q[2];S.max++;if(first[i])S.pts++;S.log.push(L.zone+" | "+q[0]+" | "+q[1][j]+(first[i]?" ✓":" ✗ (right: "+q[1][q[2]]+")"));}
+  if(j===q[2]){b.classList.add("right");f.className="fb";f.textContent=(first[i]?"⭐ ":"")+q[3];
+   document.querySelectorAll("#o"+i+" .opt").forEach(function(x){x.disabled=true});
+   if(!tried[i]){tried[i]=1;done++;document.querySelector(".hud span:last-child").textContent="⭐ "+S.pts;if(done===L.qs.length)document.getElementById("nx").disabled=false}
+  }else{b.classList.add("wrong");b.disabled=true;f.className="fb no";f.textContent="Not quite. Look at the text again and try another answer."}
+ }});
+ document.getElementById("nx").onclick=next;window.scrollTo(0,0)}
+function writeLv(L){
+ app.innerHTML=hud()+'<div class="panel"><h2>'+L.zone+': '+L.title+'</h2><p class="hint">'+L.intro+'</p><textarea id="tx" rows="5" aria-label="Your sentences"></textarea><div class="fb" id="wc"></div><button class="go" id="nx" disabled>Surface!</button></div>';
+ var t=document.getElementById("tx"),w=document.getElementById("wc"),b=document.getElementById("nx");
+ t.oninput=function(){var n=t.value.trim().split(/\s+/).filter(Boolean).length;w.textContent=n+" words (write at least 12)";b.disabled=n<12};
+ b.onclick=function(){S.text=t.value.trim();S.pts+=3;S.max+=3;next()};}
+function end(){
+ var pct=S.max?S.pts/S.max:0,r=pct>.9?["🏆","Jellyfish Master"]:pct>.7?["🥇","Deep-Sea Explorer"]:["🥈","Reef Rookie"];
+ var rep="Jellyfish Quest - "+S.n+"\nScore: "+S.pts+"/"+S.max+" ("+r[1]+")\n\n"+S.log.join("\n")+"\n\nMy writing:\n"+S.text;
+ app.innerHTML='<div style="text-align:center">'+'<div class="badge jelly" aria-hidden="true">'+r[0]+'</div><h1>You surfaced, '+esc(S.n)+'!</h1><p>You are a <b>'+r[1]+'</b> with '+S.pts+' out of '+S.max+' stars.</p></div><div class="panel"><p><b>Your writing:</b><br>'+esc(S.text)+'</p><p class="hint">Copy your results and send them to your teacher.</p><button class="go" id="cp">Copy my results</button><div class="fb" id="cm" aria-live="polite"></div><details><summary class="hint">Show results</summary><pre>'+esc(rep)+'</pre></details></div>';
+ document.getElementById("cp").onclick=function(){var m=document.getElementById("cm");
+  try{navigator.clipboard.writeText(rep).then(function(){m.textContent="Copied!"},function(){m.textContent="Open Show results and copy the text."})}catch(e){m.textContent="Open Show results and copy the text."}};}
+start();
+</script>
+</body>
+</html>
